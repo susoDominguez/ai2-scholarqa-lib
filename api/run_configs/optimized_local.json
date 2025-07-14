@@ -16,8 +16,10 @@
     "reranker_args": {
       "model_name_or_path": "mixedbread-ai/mxbai-rerank-large-v1",
       "batch_size": null,
+      "max_length": 512,
       "compile_model": true,
-      "warm_up": true
+      "warm_up": true,
+      "cache_size": 1000
     },
     "paper_finder_args": {
       "n_rerank": 50,

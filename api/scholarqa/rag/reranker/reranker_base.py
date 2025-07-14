@@ -21,11 +21,16 @@ class AbstractReranker(ABC):
 class SentenceTransformerEncoder:
     def __init__(self, model_name_or_path: str):
         from sentence_transformers import SentenceTransformer
+
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model = SentenceTransformer(model_name_or_path, revision=None, device=device)
+        self.model = SentenceTransformer(
+            model_name_or_path, revision=None, device=device
+        )
 
     def encode(self, sentences: List[str]):
-        return self.model.encode(sentences, show_progress_bar=True, convert_to_tensor=True)
+        return self.model.encode(
+            sentences, show_progress_bar=True, convert_to_tensor=True
+        )
 
     def get_tokenizer(self):
         return self.model.tokenizer
@@ -40,7 +45,11 @@ class BiEncoderScores(AbstractReranker):
     def get_scores(self, query: str, passages: List[str]) -> List[float]:
         query_embedding = self.model.encode([query])[0]
         passage_embeddings = self.model.encode(passages)
-        scores = F.cosine_similarity(query_embedding.unsqueeze(0), passage_embeddings).cpu().numpy()
+        scores = (
+            F.cosine_similarity(query_embedding.unsqueeze(0), passage_embeddings)
+            .cpu()
+            .numpy()
+        )
         return [float(s) for s in scores]
 
 
@@ -49,6 +58,7 @@ class BiEncoderScores(AbstractReranker):
 class CrossEncoderScores(AbstractReranker):
     def __init__(self, model_name_or_path: str):
         from sentence_transformers import CrossEncoder
+
         device = "cuda" if torch.cuda.is_available() else "cpu"
         print(device)
         self.model = CrossEncoder(
@@ -63,8 +73,12 @@ class CrossEncoderScores(AbstractReranker):
 
     def get_scores(self, query: str, passages: List[str]) -> List[float]:
         sentence_pairs = [[query, passage] for passage in passages]
-        scores = self.model.predict(sentence_pairs, convert_to_tensor=True, show_progress_bar=True,
-                                    batch_size=128).tolist()
+        scores = self.model.predict(
+            sentence_pairs,
+            convert_to_tensor=True,
+            show_progress_bar=True,
+            batch_size=128,
+        ).tolist()
         return [float(s) for s in scores]
 
 
@@ -72,18 +86,41 @@ class CrossEncoderScores(AbstractReranker):
 class FlagEmbeddingScores:
     def __init__(self, model_name_or_path: str):
         from FlagEmbedding import FlagReranker
+
         self.model = FlagReranker(model_name_or_path, use_fp16=True)
 
     def get_tokenizer(self):
         return self.model.tokenizer
 
-    def get_scores(self, query: str, passages: List[str], separator: str) -> List[float]:
-        sentence_pairs = [(query, passage.replace(separator, self.get_tokenizer().eos_token)) for passage in passages]
+    def get_scores(
+        self, query: str, passages: List[str], separator: str
+    ) -> List[float]:
+        sentence_pairs = [
+            (query, passage.replace(separator, self.get_tokenizer().eos_token))
+            for passage in passages
+        ]
         scores = self.model.compute_score(sentence_pairs, normalize=True, batch_size=32)
         return [float(s) for s in scores]
+
 
 RERANKER_MAPPING = {
     "crossencoder": CrossEncoderScores,
     "biencoder": BiEncoderScores,
-    "flag_embedding": FlagEmbeddingScores
+    "flag_embedding": FlagEmbeddingScores,
 }
+
+# Import optimized rerankers if available
+try:
+    from .optimized_local_reranker import (
+        OptimizedCrossEncoderReranker,
+        FastBiEncoderReranker,
+    )
+
+    RERANKER_MAPPING.update(
+        {
+            "optimized_crossencoder": OptimizedCrossEncoderReranker,
+            "fast_biencoder": FastBiEncoderReranker,
+        }
+    )
+except ImportError:
+    logger.warning("Optimized rerankers not available")

@@ -12,12 +12,11 @@
       "n_retrieval": 256,
       "n_keyword_srch": 20
     },
-    "reranker_service": "optimized_crossencoder",
+    "reranker_service": "fast_biencoder",
     "reranker_args": {
-      "model_name_or_path": "mixedbread-ai/mxbai-rerank-large-v1",
+      "model_name_or_path": "BAAI/bge-base-en-v1.5",
       "batch_size": null,
-      "compile_model": true,
-      "warm_up": true
+      "normalize_embeddings": true
     },
     "paper_finder_args": {
       "n_rerank": 50,

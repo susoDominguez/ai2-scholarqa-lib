@@ -12,7 +12,7 @@ MODEL_NAME = "mixedbread-ai/mxbai-rerank-large-v1"
 MODEL_DIR = f"/root/models/{MODEL_NAME}"
 GPU_CONFIG = modal.gpu.L4(count=1)
 
-APP_NAME = "<modal_app_name>"
+APP_NAME = "ai2-scholar-qa-reranker"  # Change this to your desired app name
 APP_LABEL = APP_NAME.lower()
 
 
@@ -31,6 +31,7 @@ APP_LABEL = APP_NAME.lower()
 # the `HF_TOKEN` environment variable must be set and provided as a [Modal Secret](https://modal.com/secrets).
 #
 # This can take some time -- at least a few minutes.
+
 
 def download_model_to_image(model_dir, model_name):
     from huggingface_hub import snapshot_download
@@ -60,7 +61,7 @@ reranker_image = (
         "hf-transfer==0.1.6",
         "huggingface_hub==0.23.4",
         "sentence-transformers==3.0.1",
-        "peft"
+        "peft",
     )
     .env({"HF_HUB_ENABLE_HF_TRANSFER": "1"})
     .run_function(
@@ -96,7 +97,7 @@ app = modal.App(APP_NAME)
     container_idle_timeout=60 * 20,
     keep_warm=2,
     allow_concurrent_inputs=1,
-    image=reranker_image
+    image=reranker_image,
 )
 class Model:
     @modal.enter()
@@ -127,31 +128,55 @@ class Model:
 
     def compile_reranker(self, batch_size):
         print("compiling cross encoder model")
-        sentence_pairs = [["This is the query entered by the user.", f"This is candidate # {i}"] for i in range(batch_size)]
+        sentence_pairs = [
+            ["This is the query entered by the user.", f"This is candidate # {i}"]
+            for i in range(batch_size)
+        ]
         for _ in range(2):
-            self.reranker_compiled.predict(sentence_pairs, convert_to_tensor=True, show_progress_bar=True, batch_size=batch_size)
+            self.reranker_compiled.predict(
+                sentence_pairs,
+                convert_to_tensor=True,
+                show_progress_bar=True,
+                batch_size=batch_size,
+            )
         self.compiled_flag = True
         print("compilation done!")
 
     @modal.method()
-    def get_scores(self, query: str, passages: List[str], batch_size: int) -> List[float]:
+    def get_scores(
+        self, query: str, passages: List[str], batch_size: int
+    ) -> List[float]:
         sentence_pairs = [[query, passage] for passage in passages]
         try:
             if self.compiled_flag:
                 print("reranking with compiled model")
-                scores = self.reranker_compiled.predict(sentence_pairs, convert_to_tensor=True, show_progress_bar=True,
-                                               batch_size=batch_size).tolist()
+                scores = self.reranker_compiled.predict(
+                    sentence_pairs,
+                    convert_to_tensor=True,
+                    show_progress_bar=True,
+                    batch_size=batch_size,
+                ).tolist()
             else:
                 print("reranking with torch model")
-                scores = self.reranker_torch.predict(sentence_pairs, convert_to_tensor=True, show_progress_bar=True,
-                                                     batch_size=16).tolist()
+                scores = self.reranker_torch.predict(
+                    sentence_pairs,
+                    convert_to_tensor=True,
+                    show_progress_bar=True,
+                    batch_size=16,
+                ).tolist()
                 if self.compiling_thread is None:
-                    self.compiling_thread = threading.Thread(target=self.compile_reranker, args=(batch_size,))
+                    self.compiling_thread = threading.Thread(
+                        target=self.compile_reranker, args=(batch_size,)
+                    )
                     self.compiling_thread.start()
         except Exception as e:
             print(e)
-            scores = self.reranker_torch.predict(sentence_pairs, convert_to_tensor=True, show_progress_bar=True,
-                                           batch_size=batch_size).tolist()
+            scores = self.reranker_torch.predict(
+                sentence_pairs,
+                convert_to_tensor=True,
+                show_progress_bar=True,
+                batch_size=batch_size,
+            ).tolist()
         return [float(s) for s in scores]
 
 
@@ -160,9 +185,7 @@ class Model:
 # We can stream inference from a FastAPI backend, also deployed on Modal.
 
 
-api_image = (
-    modal.Image.debian_slim(python_version="3.11")
-)
+api_image = modal.Image.debian_slim(python_version="3.11")
 
 
 @app.function(
@@ -171,7 +194,9 @@ api_image = (
     allow_concurrent_inputs=20,
     timeout=60 * 10,
 )
-async def modal_api_name(query: str, passages: List[str], batch_size: int = 512) -> List[float]:
+async def modal_api_name(
+    query: str, passages: List[str], batch_size: int = 512
+) -> List[float]:
     model = Model()
     return model.get_scores.remote(query, passages, batch_size)
 
@@ -179,10 +204,14 @@ async def modal_api_name(query: str, passages: List[str], batch_size: int = 512)
 @app.local_entrypoint()
 def main():
     start = time.time()
-    s = inference_api.remote("What is the python package infinity_emb?",
-                             ["This is a document not related to the python package infinity_emb, hence...",
-                              "Paris is in France!",
-                              "infinity_emb is a package for sentence embeddings and rerankings using transformer models in Python!"],
-                             64)
+    s = modal_api_name.remote(
+        "What is the python package infinity_emb?",
+        [
+            "This is a document not related to the python package infinity_emb, hence...",
+            "Paris is in France!",
+            "infinity_emb is a package for sentence embeddings and rerankings using transformer models in Python!",
+        ],
+        64,
+    )
     print(s)
     print("Time taken:", time.time() - start)
