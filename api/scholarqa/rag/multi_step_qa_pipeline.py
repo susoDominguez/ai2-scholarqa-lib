@@ -15,7 +15,7 @@ from scholarqa.utils import CompletionResult
 
 logger = logging.getLogger(__name__)
 
-
+# Defines the 2 possible formats for organizing information in literature review sections.
 class DimFormat(str, Enum):
     SYNTHESIS = "synthesis"
     LIST = "list"
@@ -26,7 +26,7 @@ class Dimension(BaseModel):
         "The name of the dimension"
     ))
     format: DimFormat = Field(default=None, description=(
-        "The generation format of the dimension - can be either list of synthesis"
+        "The generation format of the dimension - can be either list or synthesis"
     ))
     quotes: List[int] = Field(default=None, description=(
         "A list of indices of paper quotes in the dimension, can be empty if no relevant quotes are found"
