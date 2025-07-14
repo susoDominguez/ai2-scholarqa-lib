@@ -37,7 +37,7 @@ TEST_DOCUMENTS = [
 
 def test_reranker_performance(reranker_class, reranker_args: Dict, name: str) -> Dict:
     """Test a specific reranker configuration"""
-    logger.info(f"\n🧪 Testing {name}")
+    logger.info(f" Testing {name}")
     logger.info("=" * 50)
 
     try:
@@ -70,16 +70,16 @@ def test_reranker_performance(reranker_class, reranker_args: Dict, name: str) ->
             "score_range": round(max_score - min_score, 4),
         }
 
-        logger.info(f"✅ {name} - Success!")
-        logger.info(f"   📊 Init time: {init_time:.3f}s")
-        logger.info(f"   ⚡ Scoring time: {scoring_time:.3f}s")
-        logger.info(f"   🎯 Speed: {docs_per_second:.1f} docs/sec")
-        logger.info(f"   📈 Score range: {min_score:.4f} to {max_score:.4f}")
+        logger.info(f" {name} - Success!")
+        logger.info(f"    Init time: {init_time:.3f}s")
+        logger.info(f"    Scoring time: {scoring_time:.3f}s")
+        logger.info(f"    Speed: {docs_per_second:.1f} docs/sec")
+        logger.info(f"    Score range: {min_score:.4f} to {max_score:.4f}")
 
         return results
 
     except Exception as e:
-        logger.error(f"❌ {name} - Failed: {str(e)}")
+        logger.error(f" {name} - Failed: {str(e)}")
         return {
             "name": name,
             "success": False,
@@ -92,8 +92,8 @@ def test_reranker_performance(reranker_class, reranker_args: Dict, name: str) ->
 
 def main():
     """Run performance tests for all available rerankers"""
-    logger.info("🚀 Starting Reranker Performance Tests")
-    logger.info(f"📄 Testing with {len(TEST_DOCUMENTS)} documents")
+    logger.info(" Starting Reranker Performance Tests")
+    logger.info(f" Testing with {len(TEST_DOCUMENTS)} documents")
 
     results = []
 
@@ -136,7 +136,7 @@ def main():
             results.append(result)
 
         except ImportError as e:
-            logger.warning(f"⚠️ Could not import {config['name']}: {e}")
+            logger.warning(f" Could not import {config['name']}: {e}")
             results.append(
                 {
                     "name": config["name"],
@@ -145,7 +145,7 @@ def main():
                 }
             )
         except Exception as e:
-            logger.error(f"❌ Unexpected error testing {config['name']}: {e}")
+            logger.error(f" Unexpected error testing {config['name']}: {e}")
             results.append(
                 {
                     "name": config["name"],
@@ -155,7 +155,7 @@ def main():
             )
 
     # Summary
-    logger.info("\n📊 PERFORMANCE SUMMARY")
+    logger.info("\n PERFORMANCE SUMMARY")
     logger.info("=" * 60)
 
     successful_results = [r for r in results if r.get("success", False)]
@@ -191,17 +191,17 @@ def main():
                 successful_results, key=lambda x: x.get("score_range", 0)
             )
             logger.info(
-                f"🎯 Most Accurate: {most_accurate['name']} (score range: {most_accurate['score_range']:.4f})"
+                f" Most Accurate: {most_accurate['name']} (score range: {most_accurate['score_range']:.4f})"
             )
 
     else:
-        logger.error("❌ No rerankers were successfully tested!")
+        logger.error(" No rerankers were successfully tested!")
 
     # Save results
     with open("reranker_benchmark_results.json", "w") as f:
         json.dump(results, f, indent=2)
 
-    logger.info(f"\n💾 Results saved to reranker_benchmark_results.json")
+    logger.info(f"\n Results saved to reranker_benchmark_results.json")
 
     return results
 
