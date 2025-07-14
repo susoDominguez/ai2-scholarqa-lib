@@ -12,7 +12,7 @@
       "n_retrieval": 256,
       "n_keyword_srch": 20
     },
-    "reranker_service": "optimized_crossencoder",
+    "reranker_service": "crossencoder",
     "reranker_args": {
       "model_name_or_path": "mixedbread-ai/mxbai-rerank-large-v1",
       "batch_size": null,
